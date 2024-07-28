@@ -1,7 +1,6 @@
 <?php
-
 $_['heading_title'] = 'RozetkaPay';
-$_['text_rozetkapay'] = '<img src="/image/payment/rozetkapay/rpay.svg"  style="border: 1px solid #EEEEEE;" />';
+$_['text_rozetkapay'] = '<img src="/catalog/view/theme/default/image/rpay.png"  style="border: 1px solid #EEEEEE;" />';
 $_['text_payment'] = 'Payment';
 $_['text_extension']     = 'Extensions';
 $_['text_success'] = 'Settings updated';
@@ -70,3 +69,16 @@ $_['error_currency_not_uah'] = 'There is no currency UAH on the site, without it
 
 
 $_['button_pay_holding'] = 'Go to payment (holding)';
+
+$_['text_currency_detect'] = 'Currency';
+
+$_['text_language_detect'] = 'Language';
+
+$_['text_rpay_detect_avto'] = 'Automatically determined';
+$_['text_rpay_language_UK'] = 'Ukrainian';
+$_['text_rpay_language_EN'] = 'English';
+$_['text_rpay_language_ES'] = 'Spanish';
+$_['text_rpay_language_PL'] = 'Polish';
+$_['text_rpay_language_FR'] = 'French';
+$_['text_rpay_language_SK'] = 'Slovak';
+$_['text_rpay_language_DE'] = 'German';

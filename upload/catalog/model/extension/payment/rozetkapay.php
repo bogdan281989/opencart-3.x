@@ -1,5 +1,6 @@
 <?php
 
+
 class ModelExtensionPaymentRozetkaPay extends Model {
 
     private $type = 'payment';
@@ -39,7 +40,7 @@ class ModelExtensionPaymentRozetkaPay extends Model {
 
             if ($this->config->get($this->prefix . 'rozetkapay_view_icon_status') == "1") {
 
-                $title .= '<img src="' . HTTPS_SERVER . 'image/payment/rozetkapay/rpay.png" height="32">';
+                $title .= '<img src="' . HTTPS_SERVER . 'catalog/view/theme/default/image/rpay.png" height="32">';
             }
 
             if ($this->config->get($this->prefix . 'rozetkapay_view_title_default') == "1") {
@@ -66,6 +67,7 @@ class ModelExtensionPaymentRozetkaPay extends Model {
                 'sort_order' => $this->config->get($this->prefix . 'rozetkapay_sort_order')
             );
         }
+
 
         return $method_data;
     }

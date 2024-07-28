@@ -1,10 +1,10 @@
 <?php
 
-include_once DIR_SYSTEM .'library/payment/RozetkaPay/autoloader.php';
+include_once __DIR__ .'/rozetkapay/php_sdk_simple.php';
 
 class ControllerExtensionPaymentRozetkaPay extends Controller {
     
-    protected $version = '';
+    protected $version = '2.1.5';
     
     private $type = 'payment';
     private $code = 'rozetkapay';
@@ -13,7 +13,7 @@ class ControllerExtensionPaymentRozetkaPay extends Controller {
 
     private $error = array();
     private $debug = false;
-    private $extlog = false;
+    private $_extlog = false;
     private $rpay;
 
     public function __construct($registry) {
@@ -25,10 +25,10 @@ class ControllerExtensionPaymentRozetkaPay extends Controller {
         $this->debug = $this->config->get($this->prefix.'rozetkapay_test_status') === "1";
 
         if ($this->config->get($this->prefix.'rozetkapay_log_status') === "1") {
-            $this->extlog = new Log('rozetkapay');
+            $this->_extlog = new Log('rozetkapay.log');
         }
 
-        $this->rpay = new \Payment\RozetkaPay\RozetkaPay();
+        $this->rpay = new \RozetkaPay();
 
         if ($this->config->get($this->prefix.'rozetkapay_test_status') === "1") {
             $this->rpay->setBasicAuthTest();
@@ -36,11 +36,12 @@ class ControllerExtensionPaymentRozetkaPay extends Controller {
             $this->rpay->setBasicAuth($this->config->get($this->prefix.'rozetkapay_login'), $this->config->get($this->prefix.'rozetkapay_password'));
         }
         
+        
     }
     
-    public function log($var){
-        if($this->extlog !== false){
-            $this->extlog->write($var);
+    public function extLog($var){
+        if($this->_extlog !== false){
+            $this->_extlog->write(json_encode($var, JSON_PRETTY_PRINT|JSON_UNESCAPED_UNICODE));
         }
     }
 
@@ -51,50 +52,40 @@ class ControllerExtensionPaymentRozetkaPay extends Controller {
         $data['button_pay_holding'] = $this->language->get('button_pay_holding');
         
         $data['path'] = $this->path;
-        
-        return $this->load->view($this->path, $data);
-    }
-    
-    public function confirm() {
-        
-    }
-    
-    public function createPay() {
 
-        $json = [];
+        $data['qrcode'] = false;
+        $data['pay'] = false;
 
-        $json['qrcode'] = false;
-        $json['pay'] = false;
-        $json['pay_holding'] = false;
-
-        $json['alert'] = [];
+        $data['error'] = "";
 
         if ($this->session->data['payment_method']['code'] == 'rozetkapay') {
 
             $status_qrcode = $this->config->get($this->prefix.'rozetkapay_qrcode_status') === "1";
-            $json['qrcode'] = $status_qrcode;
+            $data['qrcode'] = $status_qrcode;
             
-            $status_holding = $this->config->get($this->prefix.'rozetkapay_holding_status') === "1";
-
             $order_id = $this->session->data['order_id'];
 
             $order_info = $this->model_checkout_order->getOrder($this->session->data['order_id']);
-
+            $this->extLog($order_info);
             if ($order_info['order_status_id'] != $this->config->get($this->prefix.'rozetkapay_order_status_init')) {
                 $this->model_checkout_order->addOrderHistory($order_id, $this->config->get($this->prefix.'rozetkapay_order_status_init'));
             }
-
-            $this->rpay->setResultURL($this->url->link($this->path.'/result', 'order_id=' . $order_id, true));
-            $this->rpay->setCallbackURL($this->url->link($this->path.'/callback', 'order_id=' . $order_id, true));
+            
+            $external_id = $order_id;
+            if($this->config->get($this->prefix.'rozetkapay_test_status') === "1"){
+                $external_id .=  "_" . md5($_SERVER['HTTP_HOST']);
+            }
+            
+            $this->rpay->setResultURL($this->url->link($this->path.'/result', 'external_id=' . $external_id, true));
+            $this->rpay->setCallbackURL($this->url->link($this->path.'/callback', 'external_id=' . $external_id, true));
 
             $order_info = $this->model_checkout_order->getOrder($order_id);
 
-            $dataCheckout = new \Payment\RozetkaPay\Model\PaymentCreateRequest();
-            
+            $dataCheckout = new \RPayCheckoutCreatRequest();            
             
             if($this->config->get($this->prefix.'rozetkapay_send_info_customer_status') == "1"){
                 
-                $customer = new \Payment\RozetkaPay\Model\Customer();
+                $customer = new \RPayCustomer();
                 
                 $customer->email = $order_info['email'];
                 
@@ -107,11 +98,19 @@ class ControllerExtensionPaymentRozetkaPay extends Controller {
                 $customer->address = $order_info['payment_address_1'];
                 $customer->phone = $order_info['telephone'];
                 
-                $langs = explode("-", $order_info['language_code']);
-                
-                if(isset($langs[0])){
-                    $customer->locale = strtoupper($langs[0]);
-                }     
+                if($this->config->get($this->prefix.'rozetkapay_language_detect') == "avto"){
+                    
+                    $langs = explode("-", $order_info['language_code']);
+
+                    if(isset($langs[0])){
+                        $customer->locale = strtoupper($langs[0]);
+                    }
+                    
+                }else{    
+                    
+                    $customer->locale = $this->config->get($this->prefix.'rozetkapay_language_detect');
+                                        
+                }
                 
                 $dataCheckout->customer = $customer;
                 
@@ -128,7 +127,7 @@ class ControllerExtensionPaymentRozetkaPay extends Controller {
                     
                     $product_info = $this->model_catalog_product->getProduct($product_['product_id']);
                     
-                    $productNew = new \Payment\RozetkaPay\Model\Product();
+                    $productNew = new \RPayProduct();
                     
                     $productNew->id = $product_['product_id'];
                     $productNew->name = $product_['name'];
@@ -147,103 +146,107 @@ class ControllerExtensionPaymentRozetkaPay extends Controller {
                     
                     $dataCheckout->products[] = $productNew;
                     
+                    
                 }
                 
+                
             }
-
-            if ($order_info['currency_code'] != "UAH") {
-                $order_info['total'] = $this->currency->convert($order_info['total'], $order_info['currency_code'], "UAH");
+            
+            if($this->config->get($this->prefix.'rozetkapay_currency_detect') == "avto"){
+                if ($order_info['currency_code'] != "UAH") {
+                    $order_info['total'] = $this->currency->convert($order_info['total'], $order_info['currency_code'], "UAH");
+                    $order_info['currency_code'] = "UAH";
+                }
+            }else{
+                $order_info['total'] = $this->currency->convert($order_info['total'], 
+                        $this->config->get($this->prefix.'rozetkapay_currency_detect'), "UAH");
                 $order_info['currency_code'] = "UAH";
             }
+            
+            
+            
+            
 
             $dataCheckout->amount = $order_info['total'];
-            $dataCheckout->external_id = $order_id;
+            $dataCheckout->external_id = $external_id;
             $dataCheckout->currency = $order_info['currency_code'];
+            $this->extLog($dataCheckout);
             
-            list($result, $error) = $this->rpay->paymentCreate($dataCheckout);
-
-            $json['pay'] = false;
-            if ($error === false && isset($result->is_success)) {
+            list($result, $error) = $this->rpay->checkoutCreat($dataCheckout);
+            
+            $this->extLog($result);
+            $this->extLog($error);
+            $data['pay'] = false;
+            
+            if ($error === false) {
                 if (isset($result->action) && $result->action->type == "url") {
-                    $json['pay_href'] = $result->action->value;
-                    $json['pay'] = true;
+                    $data['pay_href'] = $result->action->value;
+                    $data['pay'] = true;
                 }
             } else {
-                $json['alert'][] = $error->message;
+                //$json['alert'][] = $this->language->get('error_code_' . $error->code);
+                $data['error'] .= "<br>".$error->message;
             }
-
-            if ($status_qrcode && $json['pay']) {
-                $json['pay_qrcode'] = (new \chillerlan\QRCode\QRCode)->render($json['pay_href']);
-            }
-
-            if ($status_holding) {
-
-                $dataCheckout->callback_url = $this->url->link($this->path.'/callback', 'order_id=' . $order_id . "&holding", true);
-                $dataCheckout->result_url = $this->url->link($this->path.'/result', 'order_id=' . $order_id . "&holding", true);
-                list($result, $error) = $this->rpay->paymentCreate($dataCheckout);
-
-                $json['pay_holding'] = false;
-
-                if ($error === false && isset($result->is_success)) {
-
-                    if (isset($result->action) && $result->action->type == "url") {
-
-                        $json['pay_holding_href'] = $result->action->value;
-                        $json['pay_holding'] = true;
-                    }
-                } else {
-                    $json['alert'][] = $error->message;
-                }
-
-                if ($status_qrcode && $json['pay_holding']) {
-
-                    $json['pay_holding_qrcode'] = (new \chillerlan\QRCode\QRCode)->render($json['pay_holding_href']);
-                }
-            }
+            
+            $data['pay_qrcode'] = $status_qrcode;
+            
 
             if (isset($result->data)) {
-                $json['message'] = $result->data['message'];
+                $data['message'] = $result->data['message']. ' ('.$result->data['param'].')';
             } elseif (isset($result->message)) {
-                $json['message'] = $result->message;
+                $data['message'] = $result->message. ' ('.$result->param.')';
+            }
+            if(!empty($data['error'])){
+                $this->extLog('error');
+                $this->extLog($data['error']);  
+                $this->extLog($this->rpay->getdebug()); 
+
+                $this->extLog($dataCheckout); 
+                $this->extLog($result); 
             }
 
-            $this->log($this->rpay->debug);
-            $this->log($json['alert']);
+            return $this->load->view($this->path, $data);
 
-            $this->response->addHeader('Content-Type: application/json');
-            $this->response->setOutput(json_encode($json));
         }
+
+        return "";
+    }
+    
+    public function confirm() {
+        
     }
 
     public function callback() {
         
-        $this->log('fun: callback');
-        $this->log(file_get_contents('php://input'));
+        $this->extLog('fun: callback');
+        $this->extLog(file_get_contents('php://input'));
         
         $result = $this->rpay->сallbacks();
         
         if(!isset($result->external_id)){
-            $this->log('Failure error return data:');
+            $this->extLog('Failure error return data:');
             return;
         }
         
-        $this->log('result:');
-        $this->log($result);
-        $order_id = $result->external_id;
+        list($order_id) = explode("_", $result->external_id);
+        
+        $this->extLog('result:');
+        $this->extLog($result);
+        
         $status = $result->details->status;
         
-        $this->log('    order_id: ' . $order_id);
-        $this->log('    status: ' . $status);
+        $this->extLog('    order_id: ' . $order_id);
+        $this->extLog('    status: ' . $status);
         
         $orderStatus_id = $this->getRozetkaPayStatusToOrderStatus($status);
         
-        $this->log('    orderStatus_id: ' . $orderStatus_id);
+        $this->extLog('    orderStatus_id: ' . $orderStatus_id);
         
         $status_holding = isset($this->request->get['holding']);        
-        $this->log('    hasHolding: ' . $status_holding);
+        $this->extLog('    hasHolding: ' . $status_holding);
         
         $refund = isset($this->request->get['refund']);        
-        $this->log('    hasRefund: ' . $refund);
+        $this->extLog('    hasRefund: ' . $refund);
 
         $order_info = $this->model_checkout_order->getOrder($order_id);
 
@@ -256,15 +259,18 @@ class ControllerExtensionPaymentRozetkaPay extends Controller {
 
     public function result() {
         
-        $this->log('fun: result');
-
-        if (isset($this->request->get['order_id'])) {
-            $order_id = $this->request->get['order_id'];
-        } elseif (isset($this->session->data['order_id'])) {
-            $order_id = $this->session->data['order_id'];
+        $this->extLog('fun: result');
+        
+        
+        if (isset($this->request->get['external_id'])) {
+            $external_id = $this->request->get['external_id'];
+        }else{
+            $external_id = '';
         }
         
-        $this->log('    order_id: ' . $order_id);
+        list($order_id) = explode("_", $external_id);
+        
+        $this->extLog('    order_id: ' . $order_id);
 
         $order_info = $this->model_checkout_order->getOrder($order_id);
 
@@ -282,25 +288,11 @@ class ControllerExtensionPaymentRozetkaPay extends Controller {
             $complete = true;
         }
         
-        $status_holding = isset($this->request->get['holding']);
         
-        if($status_holding){
-            
-            $dataPay = new \Payment\RozetkaPay\Model\PaymentCreateRequest();
-            
-            $dataPay->external_id = $order_id;
-            $dataPay->amount = $order_info['total'];
-            $dataPay->currency = $order_info['currency_code'];
-            $dataPay->callback_url = $this->url->link($this->path.'/callback', 'order_id=' . $order_id . "&holding");
-            
-            list($result, $error) = $this->rpay->paymentConfirm($dataPay);
-            
-        }else{
-            if ($complete) {
-                $url = $this->url->link('checkout/success', '', true);
-            } else {
-                $url = $this->url->link('checkout/failure', '', true);
-            }
+        if ($complete) {
+            $url = $this->url->link('checkout/success', '', true);
+        } else {
+            $url = $this->url->link('checkout/failure', '', true);
         }
 
         $this->response->redirect($url);
@@ -327,6 +319,24 @@ class ControllerExtensionPaymentRozetkaPay extends Controller {
                 return "0";
                 break;
         }
+    }
+    
+    public function genQrCode() {
+        
+        if(isset($this->request->post['text'])){
+            
+            include_once __DIR__ .'/rozetkapay/phpqrcode.php';
+            
+            $text = (string)$this->request->post['text'];
+            
+            ob_start();
+            QRcode::png($text, null, QR_ECLEVEL_L, 10, 2);
+            $imageData = ob_get_contents(); 
+            ob_end_clean(); 
+
+            echo 'data:image/png;base64,'.base64_encode($imageData);
+        }
+        
     }
 
 }

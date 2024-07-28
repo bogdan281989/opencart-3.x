@@ -25,7 +25,7 @@
             </div>
             <div class="panel-body">
                 
-                <form action="{{ action }}" method="post" enctype="multipart/form-data" id="form-rozetkapay" class="form-horizontal">
+                <form action="{{ action }}" method="post" autocomplete="off" enctype="multipart/form-data" id="form-rozetkapay" class="form-horizontal">
 
                     <ul class="nav nav-tabs">
                         <li class="active"><a href="#tab-general" data-toggle="tab"><i class="fa fa-cogs text-primary"></i> {{ tab_general }}</a></li>
@@ -41,7 +41,7 @@
                             <div class="form-group required">
                                 <label class="col-sm-2 control-label">{{ entry_login }}</label>
                                 <div class="col-sm-8">
-                                    <input type="text" name="payment_rozetkapay_login" value="{{ payment_rozetkapay_login }}" class="form-control"/>
+                                    <input type="password" name="payment_rozetkapay_login" autocomplete="off" value="{{ payment_rozetkapay_login }}" class="form-control"/>
                                     {% if error_login %} 
                                         <div class="text-danger">{{ error_login }}</div>
                                     {% endif %}
@@ -51,7 +51,7 @@
                             <div class="form-group required">
                                 <label class="col-sm-2 control-label">{{ entry_password }}</label>
                                 <div class="col-sm-8">
-                                    <input type="password" name="payment_rozetkapay_password" value="{{ payment_rozetkapay_password }}" class="form-control"/>
+                                    <input type="password" name="payment_rozetkapay_password" autocomplete="off" value="{{ payment_rozetkapay_password }}" class="form-control"/>
                                     {% if error_password %}
                                         <div class="text-danger">{{ error_password }}</div>
                                     {% endif %}
@@ -114,6 +114,31 @@
                                             {% else %}
                                                 <option value="{{ geo_zone.geo_zone_id }}">{{ geo_zone.name }}</option>
                                             {% endif %}
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                            </div>
+                                    
+                            <div class="form-group">
+                                    
+                                <label class="col-sm-2 control-label">{{ text_currency_detect }}</label>
+                                <div class="col-sm-4">
+                                    <select name="payment_rozetkapay_currency_detect" class="form-control">
+                                        {% for currency in currencys %}
+                                            <option value="{{ currency.id }}"
+                                            {{ payment_rozetkapay_currency_detect == currency.id ? 
+                                                'selected="selected"':'' }}>{{ currency.name }}</option>                                            
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                    
+                                <label class="col-sm-2 control-label">{{ text_language_detect }}</label>
+                                <div class="col-sm-4">
+                                    <select name="payment_rozetkapay_language_detect" class="form-control">
+                                        {% for language in rpay_languages %}
+                                            <option value="{{ language.id }}"
+                                            {{ payment_rozetkapay_language_detect == language.id ? 
+                                                'selected="selected"':'' }}>{{ language.name }}</option>                                            
                                         {% endfor %}
                                     </select>
                                 </div>
@@ -247,7 +272,7 @@
                             
                             <div class="form-group">
                                 <label class="col-sm-2 control-label"> {{ text_view_icon_status }} 
-                                    <img src="/image/payment/rozetkapay/rpay.png" height="32">
+                                    <img src="/catalog/view/theme/default/image/rpay.png" height="32">
                                 </label>
                                 <div class="col-sm-2">
                                     <select name="payment_rozetkapay_view_icon_status" class="form-control">
@@ -261,6 +286,20 @@
                                     </select>
                                 </div>
                             </div>
+                                    
+                            <div class="form-group">
+                                <label class="col-sm-2 control-label"> {{ text_view_language_detect }}</label>
+                                <div class="col-sm-2">
+                                    <select name="payment_rozetkapay_view_language_detect" class="form-control">
+                                        {% for language in rpay_languages %}
+                                            <option value="{{ language.id }}" 
+                                                {{ payment_rozetkapay_view_language_detect == language.id ? 'selected="selected"' : "" }}
+                                                    >{{ language.name }}</option>                                        
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                            </div>
+                            
                         </div>
                         
                         <div class="tab-pane" id="tab-test">

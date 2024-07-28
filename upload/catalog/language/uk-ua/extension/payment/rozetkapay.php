@@ -1,6 +1,5 @@
 <?php
-
-$_['text_title'] = 'Оплата через RozetkaPay';
+$_['text_title'] = 'Оплата через Visa|Mastercard|GooglePay|ApplePay (RozetkaPay)';
 $_['button_pay'] = 'Перейти до оплати';
 
 $_['button_pay_holding'] = 'Перейти до оплати (holding)';
