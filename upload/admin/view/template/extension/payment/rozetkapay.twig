@@ -391,7 +391,7 @@
         let but = $('#log_refresh')
         $('#log_warning').hide()
         $.ajax({
-            url: '/admin/index.php?route=<?=$path;?>/logrefresh<?=$tokenUrl;?>',
+            url: '/admin/index.php?route={{ path }}/logrefresh{{ tokenUrl }}',
             dataType: 'json',
             beforeSend: function () {
                 but.hide()

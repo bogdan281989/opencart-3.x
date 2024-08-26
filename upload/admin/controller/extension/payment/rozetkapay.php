@@ -1,7 +1,7 @@
 <?php
 
 class ControllerExtensionPaymentRozetkaPay extends Controller {
-    protected $version = '2.1.5';
+    protected $version = '2.2.3';
 
     private $type = 'payment';
     private $code = 'rozetkapay';
@@ -63,7 +63,7 @@ class ControllerExtensionPaymentRozetkaPay extends Controller {
             "view_language_detect" => "avto"
         ];
         
-        return $setting[$key] ?? ($isArray ? [] : "");
+        return isset($setting[$key])?$setting[$key]:($isArray ? [] : "");
         
     }
 
@@ -159,15 +159,15 @@ class ControllerExtensionPaymentRozetkaPay extends Controller {
             $this->error['warning'] = $this->language->get('error_permission');
         }
         
-        if((isset($this->request->post[$this->prefix.'rozetkapay_status']) && $this->request->post[$this->prefix.'rozetkapay_status'] == "1")){
+        if((isset($this->request->post[$this->prefix.'status']) && $this->request->post[$this->prefix.'status'] == "1")){
             
-            if(isset($this->request->post[$this->prefix.'rozetkapay_test_status']) && $this->request->post[$this->prefix.'rozetkapay_test_status'] != "1"){
+            if(isset($this->request->post[$this->prefix.'test_status']) && $this->request->post[$this->prefix.'test_status'] != "1"){
 
-                if (empty($this->request->post[$this->prefix.'rozetkapay_login'])) {
+                if (empty($this->request->post[$this->prefix.'login'])) {
                     $this->error['login'] = $this->language->get('error_login');
                 }
 
-                if (empty($this->request->post[$this->prefix.'rozetkapay_password'])) {
+                if (empty($this->request->post[$this->prefix.'password'])) {
                     $this->error['password'] = $this->language->get('error_password');
                 }
 
@@ -190,17 +190,17 @@ class ControllerExtensionPaymentRozetkaPay extends Controller {
         
         if (($this->request->server['REQUEST_METHOD'] == 'POST') && $this->validate()) {
             
-            if(isset($this->request->post[$this->prefix.'rozetkapay_login'])){
-                $this->request->post[$this->prefix.'rozetkapay_login'] = trim($this->request->post[$this->prefix.'rozetkapay_login']);
+            if(isset($this->request->post[$this->prefix.'login'])){
+                $this->request->post[$this->prefix.'login'] = trim($this->request->post[$this->prefix.'login']);
             }
             
-            if(isset($this->request->post[$this->prefix.'rozetkapay_password'])){
-                $this->request->post[$this->prefix.'rozetkapay_password'] = trim($this->request->post[$this->prefix.'rozetkapay_password']);
+            if(isset($this->request->post[$this->prefix.'password'])){
+                $this->request->post[$this->prefix.'password'] = trim($this->request->post[$this->prefix.'password']);
             }
             
             
             $this->load->model('setting/setting');
-            $this->model_setting_setting->editSetting($this->prefix . $this->code, $this->request->post);
+            $this->model_setting_setting->editSetting($this->prefix, $this->request->post);
             $this->session->data['success'] = $this->language->get('text_success');
             $this->response->redirect($this->SysUrl($this->path, $this->tokenUrl, true));
         }
@@ -339,10 +339,10 @@ class ControllerExtensionPaymentRozetkaPay extends Controller {
         
         $rpay = new \RozetkaPay();
         
-        if($this->config->get($this->prefix.'rozetkapay_test_status') === "1"){
+        if($this->config->get($this->prefix.'test_status') === "1"){
             $rpay->setBasicAuthTest();
         }else{
-            $rpay->setBasicAuth($this->config->get($this->prefix.'rozetkapay_login'), $this->config->get($this->prefix.'rozetkapay_password'));
+            $rpay->setBasicAuth($this->config->get($this->prefix.'login'), $this->config->get($this->prefix.'password'));
         }
         
         $data['order_id'] = $order_id;        
@@ -398,14 +398,14 @@ class ControllerExtensionPaymentRozetkaPay extends Controller {
 
             $rpay = new \RozetkaPay();
 
-            if($this->config->get($this->prefix.'rozetkapay_test_status') === "1"){
+            if($this->config->get($this->prefix.'test_status') === "1"){
                 $rpay->setBasicAuthTest();
             }else{
-                $rpay->setBasicAuth($this->config->get($this->prefix.'rozetkapay_login'), $this->config->get($this->prefix.'rozetkapay_password'));
+                $rpay->setBasicAuth($this->config->get($this->prefix.'login'), $this->config->get($this->prefix.'password'));
             }
             
             $external_id = $order_id;
-            if($this->config->get($this->prefix.'rozetkapay_test_status') === "1"){
+            if($this->config->get($this->prefix.'test_status') === "1"){
                 $external_id .=  "_" . md5($_SERVER['HTTP_HOST']);
             }
 
@@ -460,16 +460,16 @@ class ControllerExtensionPaymentRozetkaPay extends Controller {
 
             $rpay = new \RozetkaPay();
 
-            if($this->config->get($this->prefix.'rozetkapay_test_status') === "1"){
+            if($this->config->get($this->prefix.'test_status') === "1"){
                 $rpay->setBasicAuthTest();
             }else{
-                $rpay->setBasicAuth($this->config->get($this->prefix.'rozetkapay_login'), $this->config->get($this->prefix.'rozetkapay_password'));
+                $rpay->setBasicAuth($this->config->get($this->prefix.'login'), $this->config->get($this->prefix.'password'));
             }
 
             $rpay->setCallbackURL($this->SysUrl($this->path . '/callback'));
             
             $external_id = $order_id;
-            if($this->config->get($this->prefix.'rozetkapay_test_status') === "1"){
+            if($this->config->get($this->prefix.'test_status') === "1"){
                 $external_id .=  "_" . md5($_SERVER['HTTP_HOST']);
             }
 
