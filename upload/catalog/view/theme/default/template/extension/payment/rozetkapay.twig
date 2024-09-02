@@ -1,19 +1,21 @@
 {% if pay %}
 <div class="row">
-<div class="buttons">
-    <div class="pull-right">
-        <input type="button" value="{{ button_confirm }}" id="button-confirm" class="btn btn-primary" />
+    
+    <div class="buttons">
+        <div class="pull-right">
+            <input type="button" value="{{ button_confirm }}" id="button-confirm" class="btn btn-primary" />
+        </div>
     </div>
 </div>
-</div>
-<style>svg[rpay]{width: 100px;height: 100px;margin: 20px;display:inline-block;}</style>
+
 <div class="row">
     <div class="col-sm-12 text-center">
-        <div id="rozetkapay_pay">
+        <div id="rozetkapay_pay">            
+            {% if pay_qrcode %}
             <a href="{{ pay_href }}"  class="btn btn-primary">{{ button_pay }}</a>
             <br>
             <img rpay_qrcode src="" style="display: none" height="150">
-            <svg class="" rpay version="1.1" id="L9" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px"
+                <svg class="" style="width: 100px;height: 100px;margin: 20px;display:inline-block;" rpay version="1.1" id="L9" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px"
                 viewBox="0 0 100 100" enable-background="new 0 0 0 0" xml:space="preserve">
                   <rect x="20" y="50" width="4" height="10" fill="#000">
                     <animateTransform attributeType="xml"
@@ -34,11 +36,13 @@
                       begin="0.4s" dur="0.6s" repeatCount="indefinite" />
                   </rect>
               </svg>
+            {% endif %}
         </div>
     </div>    
 </div>
-{% if pay_qrcode %}
+
 <script>
+    {% if pay_qrcode %}
     $.ajax({
         method:'POST',
         url: 'index.php?route={{ path }}/genQrCode',
@@ -46,9 +50,14 @@
     }).done(function (image) {
         $('[rpay_qrcode]').attr('src',image).show()
         $('svg[rpay]').hide()
-    })    
-</script>
+    })  
+    {% else %}
+    $('#button-confirm').bind('click', function() {
+        location = '{{ pay_href }}';
+    })
+    
     {% endif %}
-{% else %}
+</script>
+    
 <div rozetkapay_alert_error style="color: red">{{ error }}</div>
 {% endif %}

@@ -9,7 +9,7 @@ class ControllerExtensionPaymentRozetkaPay extends Controller {
     private $type = 'payment';
     private $code = 'rozetkapay';
     private $path = 'extension/payment/rozetkapay'; 
-    private $prefix = 'payment_';
+    private $prefix = 'payment_rozetkapay_';
 
     private $error = array();
     private $debug = false;
@@ -22,18 +22,18 @@ class ControllerExtensionPaymentRozetkaPay extends Controller {
         $this->load->model('checkout/order');
         $this->language->load($this->path);
 
-        $this->debug = $this->config->get($this->prefix.'rozetkapay_test_status') === "1";
+        $this->debug = $this->config->get($this->prefix.'test_status') === "1";
 
-        if ($this->config->get($this->prefix.'rozetkapay_log_status') === "1") {
+        if ($this->config->get($this->prefix.'log_status') === "1") {
             $this->_extlog = new Log('rozetkapay.log');
         }
 
         $this->rpay = new \RozetkaPay();
 
-        if ($this->config->get($this->prefix.'rozetkapay_test_status') === "1") {
+        if ($this->config->get($this->prefix.'test_status') === "1") {
             $this->rpay->setBasicAuthTest();
         } else {
-            $this->rpay->setBasicAuth($this->config->get($this->prefix.'rozetkapay_login'), $this->config->get($this->prefix.'rozetkapay_password'));
+            $this->rpay->setBasicAuth($this->config->get($this->prefix.'login'), $this->config->get($this->prefix.'password'));
         }
         
         
@@ -60,19 +60,19 @@ class ControllerExtensionPaymentRozetkaPay extends Controller {
 
         if ($this->session->data['payment_method']['code'] == 'rozetkapay') {
 
-            $status_qrcode = $this->config->get($this->prefix.'rozetkapay_qrcode_status') === "1";
+            $status_qrcode = $this->config->get($this->prefix.'qrcode_status') === "1";
             $data['qrcode'] = $status_qrcode;
             
             $order_id = $this->session->data['order_id'];
 
             $order_info = $this->model_checkout_order->getOrder($this->session->data['order_id']);
             $this->extLog($order_info);
-            if ($order_info['order_status_id'] != $this->config->get($this->prefix.'rozetkapay_order_status_init')) {
-                $this->model_checkout_order->addOrderHistory($order_id, $this->config->get($this->prefix.'rozetkapay_order_status_init'));
+            if ($order_info['order_status_id'] != $this->config->get($this->prefix.'order_status_init')) {
+                $this->model_checkout_order->addOrderHistory($order_id, $this->config->get($this->prefix.'order_status_init'));
             }
             
             $external_id = $order_id;
-            if($this->config->get($this->prefix.'rozetkapay_test_status') === "1"){
+            if($this->config->get($this->prefix.'test_status') === "1"){
                 $external_id .=  "_" . md5($_SERVER['HTTP_HOST']);
             }
             
@@ -83,7 +83,7 @@ class ControllerExtensionPaymentRozetkaPay extends Controller {
 
             $dataCheckout = new \RPayCheckoutCreatRequest();            
             
-            if($this->config->get($this->prefix.'rozetkapay_send_info_customer_status') == "1"){
+            if($this->config->get($this->prefix.'send_info_customer_status') == "1"){
                 
                 $customer = new \RPayCustomer();
                 
@@ -98,7 +98,7 @@ class ControllerExtensionPaymentRozetkaPay extends Controller {
                 $customer->address = $order_info['payment_address_1'];
                 $customer->phone = $order_info['telephone'];
                 
-                if($this->config->get($this->prefix.'rozetkapay_language_detect') == "avto"){
+                if($this->config->get($this->prefix.'language_detect') == "avto"){
                     
                     $langs = explode("-", $order_info['language_code']);
 
@@ -108,7 +108,7 @@ class ControllerExtensionPaymentRozetkaPay extends Controller {
                     
                 }else{    
                     
-                    $customer->locale = $this->config->get($this->prefix.'rozetkapay_language_detect');
+                    $customer->locale = $this->config->get($this->prefix.'language_detect');
                                         
                 }
                 
@@ -116,7 +116,7 @@ class ControllerExtensionPaymentRozetkaPay extends Controller {
                 
             }
             
-            if($this->config->get($this->prefix.'rozetkapay_send_info_products_status') == "1"){
+            if($this->config->get($this->prefix.'send_info_products_status') == "1"){
                 
                 $this->load->model('tool/image');
                 $this->load->model('catalog/product');
@@ -152,14 +152,14 @@ class ControllerExtensionPaymentRozetkaPay extends Controller {
                 
             }
             
-            if($this->config->get($this->prefix.'rozetkapay_currency_detect') == "avto"){
+            if($this->config->get($this->prefix.'currency_detect') == "avto"){
                 if ($order_info['currency_code'] != "UAH") {
                     $order_info['total'] = $this->currency->convert($order_info['total'], $order_info['currency_code'], "UAH");
                     $order_info['currency_code'] = "UAH";
                 }
             }else{
                 $order_info['total'] = $this->currency->convert($order_info['total'], 
-                        $this->config->get($this->prefix.'rozetkapay_currency_detect'), "UAH");
+                        $this->config->get($this->prefix.'currency_detect'), "UAH");
                 $order_info['currency_code'] = "UAH";
             }
             
@@ -204,6 +204,7 @@ class ControllerExtensionPaymentRozetkaPay extends Controller {
                 $this->extLog($dataCheckout); 
                 $this->extLog($result); 
             }
+            
 
             return $this->load->view($this->path, $data);
 
@@ -212,9 +213,6 @@ class ControllerExtensionPaymentRozetkaPay extends Controller {
         return "";
     }
     
-    public function confirm() {
-        
-    }
 
     public function callback() {
         
@@ -284,7 +282,7 @@ class ControllerExtensionPaymentRozetkaPay extends Controller {
             }
         }
         
-        if($this->config->get($this->prefix.'rozetkapay_order_status_success') == $order_info['order_status_id']){
+        if($this->config->get($this->prefix.'order_status_success') == $order_info['order_status_id']){
             $complete = true;
         }
         
@@ -303,16 +301,16 @@ class ControllerExtensionPaymentRozetkaPay extends Controller {
 
         switch ($status) {
             case "init":
-                return $this->config->get($this->prefix.'rozetkapay_order_status_init');
+                return $this->config->get($this->prefix.'order_status_init');
                 break;
             case "pending":
-                return $this->config->get($this->prefix.'rozetkapay_order_status_pending');
+                return $this->config->get($this->prefix.'order_status_pending');
                 break;
             case "success":
-                return $this->config->get($this->prefix.'rozetkapay_order_status_success');
+                return $this->config->get($this->prefix.'order_status_success');
                 break;
             case "failure":
-                return $this->config->get($this->prefix.'rozetkapay_order_status_failure');
+                return $this->config->get($this->prefix.'order_status_failure');
                 break;
 
             default:

@@ -1,7 +1,7 @@
 <?php
 
 class ControllerExtensionPaymentRozetkaPay extends Controller {
-    protected $version = '2.2.3';
+    protected $version = '2.2.4';
 
     private $type = 'payment';
     private $code = 'rozetkapay';
@@ -257,7 +257,7 @@ class ControllerExtensionPaymentRozetkaPay extends Controller {
     
     public function logdownload() {
 
-		$file = DIR_LOGS . $this->log_file;
+		$file = DIR_LOGS . $this->log_file . ".log";
 
 		if (file_exists($file) && filesize($file) > 0) {
 			$this->response->addheader('Pragma: public');
@@ -278,7 +278,7 @@ class ControllerExtensionPaymentRozetkaPay extends Controller {
 	
 	public function logclear() {
 
-        $file = DIR_LOGS . $this->log_file;
+        $file = DIR_LOGS . $this->log_file . ".log";
 
         $handle = fopen($file, 'w+');
 
@@ -296,7 +296,7 @@ class ControllerExtensionPaymentRozetkaPay extends Controller {
         
         $json['ok'] = true;
         
-        $file = DIR_LOGS . $this->log_file;
+        $file = DIR_LOGS . $this->log_file . ".log";
 
 		if (file_exists($file)) {
 			$size = filesize($file);
