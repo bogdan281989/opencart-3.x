@@ -113,7 +113,12 @@ class ControllerExtensionPaymentRozetkaPay extends Controller {
                 }
                 
                 $dataCheckout->customer = $customer;
-                
+            }
+			
+			 if($this->config->get($this->prefix.'currency_detect') == "avto"){
+				$currency = $order_info['currency_code'];
+            }else{				
+				$currency = $this->config->get($this->prefix.'currency_detect');
             }
             
             if($this->config->get($this->prefix.'send_info_products_status') == "1"){
@@ -139,7 +144,7 @@ class ControllerExtensionPaymentRozetkaPay extends Controller {
                                 $this->config->get('theme_' . $this->config->get('config_theme') . '_image_cart_height'));
                     }
                     $productNew->quantity = $product_['quantity'];
-                    $productNew->net_amount = $product_['total'];
+                    $productNew->net_amount = $this->currency->format($product_['total'], $currency, $this->currency->getValue($currency), false);
                     $productNew->vat_amount = $product_['tax'];
                     
                     $productNew->url = $this->url->link('product/product', 'product_id=' . $product_['product_id'] , true);
@@ -150,28 +155,13 @@ class ControllerExtensionPaymentRozetkaPay extends Controller {
                 }
                 
                 
-            }
-            
-            if($this->config->get($this->prefix.'currency_detect') == "avto"){
-                if ($order_info['currency_code'] != "UAH") {
-                    $order_info['total'] = $this->currency->convert($order_info['total'], $order_info['currency_code'], "UAH");
-                    $order_info['currency_code'] = "UAH";
-                }
-            }else{
-                $order_info['total'] = $this->currency->convert($order_info['total'], 
-                        $this->config->get($this->prefix.'currency_detect'), "UAH");
-                $order_info['currency_code'] = "UAH";
-            }
-            
-            
-            
-            
+            }           
 
-            $dataCheckout->amount = $order_info['total'];
+            $dataCheckout->amount = $this->currency->format($order_info['total'], $currency, $this->currency->getValue($currency), false);
             $dataCheckout->external_id = $external_id;
-            $dataCheckout->currency = $order_info['currency_code'];
+            $dataCheckout->currency = $currency;
             $this->extLog($dataCheckout);
-            
+      
             list($result, $error) = $this->rpay->checkoutCreat($dataCheckout);
             
             $this->extLog($result);
@@ -269,33 +259,31 @@ class ControllerExtensionPaymentRozetkaPay extends Controller {
         list($order_id) = explode("_", $external_id);
         
         $this->extLog('    order_id: ' . $order_id);
-
-        $order_info = $this->model_checkout_order->getOrder($order_id);
-
-        $complete = false;
-
-        foreach ((array) $this->config->get('config_complete_status') as $order_status_id) {
-            
-            if ($order_status_id == $order_info['order_status_id']) {             
-                $complete = true;
-                break;
-            }
-        }
-        
-        if($this->config->get($this->prefix.'order_status_success') == $order_info['order_status_id']){
-            $complete = true;
-        }
-        
-        
-        if ($complete) {
-            $url = $this->url->link('checkout/success', '', true);
-        } else {
-            $url = $this->url->link('checkout/failure', '', true);
-        }
-
-        $this->response->redirect($url);
-        
+		
+		$data['lang'] = $this->language->get('code');
+		$data['redirect_success'] = $this->url->link('checkout/success', '', 'SSL');
+		$data['redirect_fail'] = $this->url->link('checkout/failure', '', 'SSL');
+		$data['query_url'] = $this->url->link($this->path . '/checkStatusPay', 'order_id=' . $external_id, 'SSL');
+		
+		$this->response->setOutput($this->load->view('extension/payment/rozetkapay_check', $data));        
     }
+	
+	public function checkStatusPay() {
+		$json = array();
+		
+		$order_id = !empty($this->request->get['order_id']) ? $this->request->get['order_id'] : false;
+		
+		$result = $this->convertToObjectArray($this->rpay->paymentInfo($order_id));
+
+		if(!empty($result[0]['purchased']) && !empty($order_id)) {
+			$json['status'] = true;
+		} else {			
+			$json['status'] = false;
+		}
+		
+		$this->response->addHeader('Content-Type: application/json');
+		$this->response->setOutput(json_encode($json));
+	}
 
     public function getRozetkaPayStatusToOrderStatus($status) {
 
@@ -334,7 +322,20 @@ class ControllerExtensionPaymentRozetkaPay extends Controller {
 
             echo 'data:image/png;base64,'.base64_encode($imageData);
         }
-        
     }
+	
+	private function convertToObjectArray($data) {
+		if (is_object($data)) {
+			$data = (array) $data;
+		}
+		
+		if (is_array($data)) {
+			foreach ($data as &$value) {
+				$value = $this->convertToObjectArray($value);
+			}
+		}
+		
+		return $data;
+	}
 
 }
