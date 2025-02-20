@@ -52,7 +52,7 @@ $_['error_log_warning']	   = 'Попередження: файл журналу 
 $_['entry_send_info_customer_status'] = 'Відправляти дані клієнтаa';
 $_['entry_send_info_products_status'] = 'товара';
 
-$_['text_tab_view'] = 'Вгляд';
+$_['text_tab_view'] = 'Вигляд';
 $_['text_view_title_default'] = 'Використовувати по-замовчуванням назву';
 $_['text_view_icon_status'] = 'Відображати лого';
 $_['text_view_title'] = 'Назва';
