@@ -89,11 +89,6 @@ class RozetkaPay {
         if ($data->amount <= 0) {
             throw new \Exception('Fatal error: amount!');
         }
-        //fix
-        $data->amount = $this->fixAmount($data->amount);
-        foreach ($data->products as $key => $product) {
-            $data->products->net_amount = $this->fixAmount($product->net_amount);
-        }
 
         $data = (array) $data;
 
