@@ -69,8 +69,6 @@ class ControllerExtensionPaymentRozetkaPay extends Controller {
 
     public function index() {
         
-        $this->SysDBCheck();
-        
         $this->document->setTitle($this->language->get('heading_title'));
         
         $this->save($data);
@@ -202,7 +200,7 @@ class ControllerExtensionPaymentRozetkaPay extends Controller {
             $this->load->model('setting/setting');
             $this->model_setting_setting->editSetting($this->prefix, $this->request->post);
             $this->session->data['success'] = $this->language->get('text_success');
-            $this->response->redirect($this->SysUrl($this->path, $this->tokenUrl, true));
+            $this->response->redirect($this->SysUrl('marketplace/extension', $this->tokenUrl . '&type=payment', true));
         }
         
         if (isset($this->session->data['success'])) {
@@ -571,28 +569,19 @@ class ControllerExtensionPaymentRozetkaPay extends Controller {
         
     }
     
-    public function SysDBCheck() {
-        
-        $row = $this->db->query("select column_name, data_type, character_maximum_length from information_schema.columns  where "
-                . "TABLE_SCHEMA = '" . DB_DATABASE . "' and   table_name = '" . DB_PREFIX . "order' and column_name = 'payment_method'")->row;
-
-        if(!empty($row)){
-            $length = (int)$row['character_maximum_length'];
-            $lengthNow = strlen('<img src="'.HTTPS_SERVER.'image/payment/rozetkapay/rpay.png" height="32">')+80;
-            
-            if($length <= $lengthNow){
-                $this->db->query("ALTER TABLE `" . DB_PREFIX . "order` MODIFY `payment_method` varchar(".$lengthNow.");");
-            }
-            
-        }
-        
+    public function install() {
+		$this->load->model($this->path);
+		
+		$this->model_extension_payment_rozetkapay->install();
+    }
+	
+	public function uninstall() {
+		$this->load->model($this->path);
+		
+		$this->model_extension_payment_rozetkapay->uninstall();
     }
     
-    
-    
-    
     public function checkSysSupport() {
-        
         $json = [];
         
         $json['cms'] = 'OpenCart';
