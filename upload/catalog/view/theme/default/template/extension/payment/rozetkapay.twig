@@ -43,19 +43,29 @@
 
 <script>
     {% if pay_qrcode %}
-    $.ajax({
-        method:'POST',
-        url: 'index.php?route={{ path }}/genQrCode',
-        data:{ 'text':'{{ pay_href }}' }
-    }).done(function (image) {
-        $('[rpay_qrcode]').attr('src',image).show()
-        $('svg[rpay]').hide()
-    })  
+		$.ajax({
+			method:'POST',
+			url: 'index.php?route={{ path }}/genQrCode',
+			data:{ 'text':'{{ pay_href }}' }
+		}).done(function (image) {
+			$('[rpay_qrcode]').attr('src',image).show()
+			$('svg[rpay]').hide()
+		})  
     {% else %}
-    $('#button-confirm').bind('click', function() {
-        location = '{{ pay_href }}';
-    })
-    
+		$('#button-confirm').on('click', function() {
+			{% if referrer %}
+			$.ajax({
+				type: 'get',
+				url: 'index.php?route=extension/payment/rozetkapay/referrer',
+				cache: false,
+				success: function() {
+					location = '{{ pay_href }}';
+				}
+			});
+			{% else %}
+				location = '{{ pay_href }}';
+			{% endif %}
+		});
     {% endif %}
 </script>
     
