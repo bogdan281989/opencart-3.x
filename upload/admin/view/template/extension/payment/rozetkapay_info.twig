@@ -1,0 +1,168 @@
+	{% if result %}
+	<div class="modal-body">
+		<div class="table-responsive">
+			<table class="table table-striped table-hover">
+			{% if result.uuid %}
+				<tr><td><b>{{ text_info_payment_id }}</b></td><td>{{ result.uuid }}</td></tr>
+			{% endif %}
+			{% if result.text_status %}
+				<tr><td><b>{{ text_info_status }}</b></td><td>{{ result.text_status }}</td></tr>
+			{% endif %}
+			{% if result.amount %}
+				<tr><td><b>{{ text_info_amount }}</b></td><td>{{ result.amount }}</td></tr>
+			{% endif %}
+			{% if result.amount_refunded > 0 %}
+				{% if result.amount_final > 0 %}
+				<tr><td><b>{{ text_info_amount_final }}</b></td><td style="color:green;"><b>{{ result.amount_final }}</b></td></tr>
+				{% endif %}
+				<tr><td><b>{{ text_info_amount_refunded }}</b></td><td style="color:red;">{{ result.amount_refunded }}</td></tr>
+			{% endif %}
+			{% if result.amount_confirmed > 0 %}
+				{% if result.amount_final > 0 %}
+				<tr><td><b>{{ text_info_amount_final }}</b></td><td style="color:green;"><b>{{ result.amount_confirmed }}</b></td></tr>
+				<tr><td><b>{{ text_info_amount_refunded }}</b></td><td style="color:red;">{{ result.amount_final }}</td></tr>
+				{% endif %}
+			{% endif %}
+			{% if result.finalAmount %}
+				<tr><td><b>{{ text_info_final_amount }}</b></td><td>{{ result.finalAmount }}</td></tr>
+			{% endif %}
+			{% if result.currency %}
+				<tr><td><b>{{ text_info_currency }}</b></td><td>{{ result.currency }}</td></tr>
+			{% endif %}
+			{% if result.createdDate %}
+				<tr><td><b>{{ text_info_create_date }}</b></td><td>{{ result.createdDate }}</td></tr>
+			{% endif %}	
+			{% if result.modifiedDate %}
+				<tr><td><b>{{ text_info_end_date }}</b></td><td>{{ result.modifiedDate }}</td></tr>
+			{% endif %}			
+			{% if result.customer %}
+				<tr><td><b>{{ text_info_customer }}</b></td><td>{{ result.customer }}</td></tr>
+			{% endif %}
+			</table>
+		</div>
+		<a href="#" id="show-all-invoices">{{ text_all_mono_invoice }}</a>
+    </div>
+		{% if result.confirmed == false and result.amount_canceled == false %}
+		<div class="modal-footer">
+		<div class="alert alert-info text-left">{{ text_amount_hold }}</div>
+		<div class="col-sm-5">
+			<div class="form-group" style="padding: 0;">
+				<span style="display:block;float:left;padding:7px 0;font-size:13px;font-weight:600;color:red;">
+					{{ text_write_off }}
+				</span>
+				<input type="text" name="amount_transaction" value="{{ result.amount }}" id="input-amount" class="form-control" style="float:left;max-width:110px;margin-left:10px" />
+			</div>
+		</div>
+        <button type="button" class="btn btn-success" id="confirm-rp-pay" data-uuid="{{ result.uuid }}">{{ text_confirm_pay }}</button>
+        <button type="button" class="btn btn-danger" id="cancel-rp-pay" data-uuid="{{ result.uuid }}">{{ text_cancel_pay }}</button>
+		</div>
+		{% endif %}
+		{% if result.confirmed == true and result.amount_refunded == false %}
+		<div class="modal-footer">
+		<div class="alert alert-info text-left">{{ text_payment_success_refund }}</div>
+		<button type="button" class="btn btn-danger" id="refund-rp-pay" data-uuid="{{ result.uuid }}">{{ text_cancel_pay }}</button>
+		</div>
+		{% endif %}
+	{% else %}
+	<div class="modal-body">
+		{{ text_empty }}
+	</div>
+	{% endif %}
+	<script>
+		$('#confirm-rp-pay').on('click', function() {
+			var amount = parseFloat($('#input-amount').val());
+			var external_id = $(this).attr('data-uuid');
+
+			$.ajax({
+				url: 'index.php?route=extension/payment/rozetkapay/confirmPayment&user_token={{ user_token }}&amount=' + encodeURIComponent(amount) + '&external_id=' + encodeURIComponent(external_id),
+				dataType: 'json',
+				beforeSend: function() {
+					$('#confirm-rp-pay').button('loading');
+				},
+				complete: function() {
+					$('#confirm-rp-pay').button('reset');
+				},
+				success: function(json) {
+					$('.alert').remove();
+					
+					if(json['error']) {
+						$('.modal-footer').before('<div class="col-sm-12"><div class="alert alert-danger" style="margin-top: 10px;">' + json['error'] + '<button type="button" class="close" data-dismiss="alert">&times;</button></div></div>');
+					}
+					
+					if(json['success']) {
+						$('.alert').remove();
+						
+						$('.container-fluid>.row').before('<div class="alert alert-success">' + json['success'] + '<button type="button" class="close" data-dismiss="alert">&times;</button></div>');
+						
+						$('#info-modal-rp').modal('hide');
+					}	
+				}
+			});	
+		});
+		
+		$('#cancel-rp-pay').on('click', function() {
+			if (confirm("{{ text_confirm_refund }}")) {
+				var amount = parseFloat($('#input-amount').val());
+				var external_id = $(this).attr('data-uuid');
+
+				$.ajax({
+					url: 'index.php?route=extension/payment/rozetkapay/paymentCancel&user_token={{ user_token }}&amount=' + encodeURIComponent(amount) + '&external_id=' + encodeURIComponent(external_id),
+					dataType: 'json',
+					beforeSend: function() {
+						$('#cancel-rp-pay').button('loading');
+					},
+					complete: function() {
+						$('#cancel-rp-pay').button('reset');
+					},
+					success: function(json) {
+						$('.alert').remove();
+						
+						if(json['error']) {
+							$('.modal-footer').before('<div class="col-sm-12"><div class="alert alert-danger" style="margin-top: 10px;">' + json['error'] + '<button type="button" class="close" data-dismiss="alert">&times;</button></div></div>');
+						}
+						
+						if(json['success']) {
+							$('.alert').remove();
+							
+							$('.container-fluid>.row').before('<div class="alert alert-success">' + json['success'] + '<button type="button" class="close" data-dismiss="alert">&times;</button></div>');
+							
+							$('#info-modal-rp').modal('hide');
+						}	
+					}
+				});
+			} 
+		});
+		
+		$('#refund-rp-pay').on('click', function() {
+			if (confirm("{{ text_confirm_refund }}")) {
+				var amount = parseFloat($('#input-amount').val());
+				var external_id = $(this).attr('data-uuid');
+
+				$.ajax({
+					url: 'index.php?route=extension/payment/rozetkapay/paymentRefund&user_token={{ user_token }}&amount=' + encodeURIComponent(amount) + '&external_id=' + encodeURIComponent(external_id),
+					dataType: 'json',
+					beforeSend: function() {
+						$('#refund-rp-pay').button('loading');
+					},
+					complete: function() {
+						$('#refund-rp-pay').button('reset');
+					},
+					success: function(json) {
+						$('.alert').remove();
+						
+						if(json['error']) {
+							$('.modal-footer').before('<div class="col-sm-12"><div class="alert alert-danger" style="margin-top: 10px;">' + json['error'] + '<button type="button" class="close" data-dismiss="alert">&times;</button></div></div>');
+						}
+						
+						if(json['success']) {
+							$('.alert').remove();
+							
+							$('.container-fluid>.row').before('<div class="alert alert-success">' + json['success'] + '<button type="button" class="close" data-dismiss="alert">&times;</button></div>');
+							
+							$('#info-modal-rp').modal('hide');
+						}	
+					}
+				});
+			} 
+		});
+	</script>

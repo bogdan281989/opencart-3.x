@@ -5,4 +5,143 @@
     <version>2.2.4</version>
     <author>RozetkaPay</author>
     <link>https://rozetkapay.com/</link>
+	<file path="admin/view/template/sale/order_info.twig">
+		<operation>
+		  <search><![CDATA[{{ footer }}]]></search>
+		  <add position="before"><![CDATA[
+			<script>
+				$('#get-info-rp').on('click', function() {
+					$.ajax({
+						url: 'index.php?route=extension/payment/rozetkapay/getInfoPayment&user_token={{ user_token }}&external_id={{ order_id }}',
+						dataType: 'html',
+						beforeSend: function() {
+							$('#get-info-rp').button('loading');
+						},
+						complete: function() {
+							$('#get-info-rp').button('reset');
+						},
+						success: function(html) {
+							$('.alert').remove();
+							$('#info-modal-rp .modal-body, #info-modal-rp .modal-footer').remove();
+			
+							if(html) {
+								$('#info-modal-rp-label').text('{{ text_info_trans }}' + {{ order_id }});
+								$('#info-modal-rp .modal-header').after(html);
+								$('#info-modal-rp').modal('show');
+							} else {
+								$('#content > .container-fluid').prepend('<div class="alert alert-danger"><i class="fa fa-exclamation-circle"></i> {{ text_error_find_trans }}</div>'); 
+							}
+						},
+						error: function(xhr, ajaxOptions, thrownError) {
+							alert(thrownError + "\r\n" + xhr.statusText + "\r\n" + xhr.responseText);
+						}
+					});
+					
+					return false;
+				});
+				
+				$('#get-callback').on('click', function() {
+					$.ajax({
+						url: 'index.php?route=extension/payment/rozetkapay/getResendCallback&user_token={{ user_token }}',
+						type: 'post',
+						data: 'order_id={{ rozetka_uuid }}',
+						dataType: 'json',
+						beforeSend: function() {
+							$('#get-callback').button('loading');
+						},
+						complete: function() {
+							$('#get-callback').button('reset');
+						},
+						success: function(json) {
+							$('.alert').remove();
+							
+							if(json['success']) {
+								$('#content > .container-fluid').prepend('<div class="alert alert-success"><i class="fa fa-exclamation-circle"></i> ' + json['success'] + '</div>');
+							}
+							
+							if(json['error']) {
+								$('#content > .container-fluid').prepend('<div class="alert alert-danger"><i class="fa fa-exclamation-circle"></i> ' + json['error'] + '</div>');
+							}
+						},
+						error: function(xhr, ajaxOptions, thrownError) {
+							alert(thrownError + "\r\n" + xhr.statusText + "\r\n" + xhr.responseText);
+						}
+					});
+					
+					return false;
+				});
+			</script>
+			<div class="modal fade" id="info-modal-rp" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
+			  <div class="modal-dialog" role="document">
+				<div class="modal-content">
+				  <div class="modal-header">
+					<button type="button" class="close" data-dismiss="modal" aria-label="Закрыть">
+					  <span aria-hidden="true">×</span>
+					</button>
+					<h4 class="modal-title" id="info-modal-rp-label"></h4>
+				  </div>
+				  
+				</div>
+			  </div>
+			</div>
+			  ]]></add>
+		</operation>
+		<operation>
+			  <search><![CDATA[<div class="pull-right">]]></search>
+			  <add position="replace"><![CDATA[<div class="pull-right">{% if payment_code == 'rozetkapay' %}
+			  <div class="btn-group">
+			  <button type="button" class="btn btn-primary dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">RozetkaPay<span class="caret"></span></button>
+			  <ul class="dropdown-menu dropdown-menu-right">
+				  <li><a href="#" id="get-info-rp"><i class="fa fa-exchange" aria-hidden="true"></i> {{ text_trans_order }}</a></li>
+			  </ul>
+			  </div>{% endif %}
+			   ]]></add>
+		</operation>
+	</file>
+	<file path="admin/controller/sale/order.php">
+		<operation>
+		  <search><![CDATA[$this->load->model('setting/extension');]]></search>
+		  <add position="before"><![CDATA[
+		  $data['payment_code'] = $order_info['payment_code'];
+		  
+		  //$this->load->model('extension/payment/rozetka_ec');
+		  
+		  //$data['rozetka_uuid'] = $this->model_extension_module_rozetkapay->getUuid($this->request->get['order_id']);
+		  
+		  ]]></add>
+		</operation>
+	</file>
+	<file path="admin/language/ru-ru/sale/order.php">
+		<operation>
+		  <search><![CDATA[// Text]]></search>
+		  <add position="before"><![CDATA[
+			$_['text_trans_order']          				= 'Транзакция этого заказа';
+			$_['text_callback']          					= 'Отправить повторно Callback';
+			$_['text_info_trans']          			        = 'Информация по заказу: ';
+			$_['text_refund_pay']          			        = 'Вернуть оплату по заказу';
+		  ]]></add>
+		</operation>
+	</file>
+	<file path="admin/language/uk-ua/sale/order.php">
+		<operation>
+		  <search><![CDATA[// Text]]></search>
+		  <add position="before"><![CDATA[
+			$_['text_trans_order']          				= 'Транзакція цього замовлення';
+			$_['text_callback']          					= 'Відправити повторно Callback';
+			$_['text_info_trans']          			        = 'Інформація по замовленню: ';
+			$_['text_refund_pay']          			        = 'Повернути оплату по замовленню';
+		  ]]></add>
+		</operation>
+	</file>
+	<file path="admin/language/en-gb/sale/order.php">
+		<operation>
+		  <search><![CDATA[// Text]]></search>
+		  <add position="before"><![CDATA[
+			$_['text_trans_order']          				= 'Transaction of this order';
+			$_['text_callback']          					= 'Resend Callback';
+			$_['text_info_trans']          			        = 'Order information: ';
+			$_['text_refund_pay']          			        = 'Refund the order';
+		  ]]></add>
+		</operation>
+	</file>
 </modification>

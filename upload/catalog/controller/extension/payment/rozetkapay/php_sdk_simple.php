@@ -114,7 +114,7 @@ class RozetkaPay {
         $data['external_id'] = (string) $data['external_id'];
 
         foreach ($data as $key => $value) {
-            if (is_null($value) || empty($value)) {
+            if ((is_null($value) || empty($value)) && $key != 'confirm') {
                 unset($data[$key]);
             }
         }
@@ -139,12 +139,54 @@ class RozetkaPay {
         $data['external_id'] = (string) $data['external_id'];
 
         foreach ($data as $key => $value) {
-            if (is_null($value) || empty($value)) {
+            if ((is_null($value) || empty($value)) && $key != 'confirm') {
                 unset($data[$key]);
             }
         }
 
         return $this->sendRequest("payments/" . self::version . "/refund", "POST", $data);
+    }
+	
+	public function paymentConfirm($data) {
+
+        if (empty($data->callback_url)) {
+            $data->callback_url = $this->getCallbackURL();
+        }
+
+        $data->amount = $this->fixAmount($data->amount);
+
+        $data = (array) ($data);
+
+        $data['external_id'] = (string)$data['external_id'];
+
+        foreach ($data as $key => $value) {
+            if (is_null($value) || empty($value) || $key == 'confirm' || $key == 'mode') {
+                unset($data[$key]);
+            }
+        }
+
+        return $this->sendRequest("payments/" . self::version . "/confirm", "POST", $data);
+    }	
+	
+	public function paymentCancel($data) {
+
+        if (empty($data->callback_url)) {
+            $data->callback_url = $this->getCallbackURL();
+        }
+
+        $data->amount = $this->fixAmount($data->amount);
+
+        $data = (array) ($data);
+
+        $data['external_id'] = (string)$data['external_id'];
+
+        foreach ($data as $key => $value) {
+            if (is_null($value) || empty($value) || $key == 'confirm' || $key == 'mode') {
+                unset($data[$key]);
+            }
+        }
+
+        return $this->sendRequest("payments/" . self::version . "/cancel", "POST", $data);
     }
 
     public function paymentInfo($external_id) {

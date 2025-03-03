@@ -35,8 +35,6 @@ class ControllerExtensionPaymentRozetkaPay extends Controller {
         } else {
             $this->rpay->setBasicAuth($this->config->get($this->prefix.'login'), $this->config->get($this->prefix.'password'));
         }
-        
-        
     }
     
     public function extLog($var){
@@ -72,7 +70,7 @@ class ControllerExtensionPaymentRozetkaPay extends Controller {
             
             $external_id = $order_id;
             if($this->config->get($this->prefix.'test_status') === "1"){
-                $external_id .=  "_" . md5($_SERVER['HTTP_HOST']);
+                $external_id .=  "_" . md5($this->request->server['HTTP_HOST']);
             }
             
             $this->rpay->setResultURL($this->url->link($this->path.'/result', 'external_id=' . $external_id, true));
@@ -153,12 +151,18 @@ class ControllerExtensionPaymentRozetkaPay extends Controller {
             $dataCheckout->amount = $this->currency->format($order_info['total'], $currency, $this->currency->getValue($currency), false);
             $dataCheckout->external_id = $external_id;
             $dataCheckout->currency = $currency;
+			
+			if($this->config->get($this->prefix.'mode') == 'hold') {
+				$dataCheckout->confirm = false;
+			}
+
             $this->extLog($dataCheckout);
-      
+
             list($result, $error) = $this->rpay->checkoutCreat($dataCheckout);
-            
+
             $this->extLog($result);
             $this->extLog($error);
+			
             $data['pay'] = false;
             
             if ($error === false) {
@@ -201,7 +205,7 @@ class ControllerExtensionPaymentRozetkaPay extends Controller {
         $this->extLog(file_get_contents('php://input'));
         
         $result = $this->rpay->сallbacks();
-        
+    
         if(!isset($result->external_id)){
             $this->extLog('Failure error return data:');
             return;

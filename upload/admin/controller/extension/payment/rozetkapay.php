@@ -9,17 +9,13 @@ class ControllerExtensionPaymentRozetkaPay extends Controller {
     private $prefix = 'payment_rozetkapay_';    
     private $token_name = 'user_token';
     
-    
     private $type_code = '';
     
     private $error = array();
     
     private $token_value = '';
     private $tokenUrl = '';
-    
-    
-    
-    
+
     private $log_file = 'rozetkapay';    
     private $extLog;
     
@@ -31,8 +27,18 @@ class ControllerExtensionPaymentRozetkaPay extends Controller {
         $this->tokenUrl = '&' . $this->token_name . '=' . $this->token_value;
         
         include_once DIR_CATALOG  .'controller/'.$this->path.'/php_sdk_simple.php';
-        
-        
+		
+		$this->rpay = new \RozetkaPay();
+		
+		if ($this->config->get($this->prefix.'test_status') === "1") {
+            $this->rpay->setBasicAuthTest();
+        } else {
+            $this->rpay->setBasicAuth($this->config->get($this->prefix.'login'), $this->config->get($this->prefix.'password'));
+        }
+		
+		if ($this->config->get($this->prefix.'log_status') === "1") {
+            $this->_extlog = new Log('rozetkapay.log');
+        }
     }
     
     public function getDefaultValue($key, $isArray = false) {
@@ -41,6 +47,7 @@ class ControllerExtensionPaymentRozetkaPay extends Controller {
             "login" => "",
             "password" => "",
             "status" => false,
+            "mode" 	=> 'pay',
             "sort_order" => "0",
             "geo_zone_id" => "0",
             "holding_status" => false,
@@ -83,7 +90,7 @@ class ControllerExtensionPaymentRozetkaPay extends Controller {
         $data['log'] = '';        
 
         $arr = array(
-            "login", "password", "status", "sort_order", "geo_zone_id", "holding_status", "qrcode_status",
+            "login", "password", "status", "mode", "sort_order", "geo_zone_id", "holding_status", "qrcode_status",
             "language_detect", "currency_detect",
             
             
@@ -329,231 +336,207 @@ class ControllerExtensionPaymentRozetkaPay extends Controller {
         $this->response->setOutput(json_encode($json));
     }
     
-    public function order() {
-        
-        $data['text_confirm'] = $this->language->get('text_confirm');
-        
-        $order_id = isset($this->request->get['order_id']) ?$this->request->get['order_id'] : false;
-        
-        $rpay = new \RozetkaPay();
-        
-        if($this->config->get($this->prefix.'test_status') === "1"){
-            $rpay->setBasicAuthTest();
-        }else{
-            $rpay->setBasicAuth($this->config->get($this->prefix.'login'), $this->config->get($this->prefix.'password'));
-        }
-        
-        $data['order_id'] = $order_id;        
-        $data['tokenUrl'] = $this->tokenUrl;
-        $data['path'] = $this->path;
-        
-        $this->load->model('sale/order');
-        
-        $order_info = $this->model_sale_order->getOrder($order_id);
-        $data['total'] = $order_info['total'];  
-        
-        $lang_keys = ['text_refund_amount','text_refund_button','text_transaction_datatime',
-            'text_transaction_amount','text_transaction_status', 'text_transaction_type'];
-        
-        $data = array_merge($data, $this->SysloadLanguage($lang_keys));
-        
-        $data['path'] = $this->path;
-        $data['tokenUrl'] = $this->tokenUrl;
-		$data['prefix'] = $this->prefix;
-        
-        return $this->load->view($this->path.'_order', $data);
-        
-    }
-    
-    public function payRefund() {
-        
-        $json = [];
-        
-        $json['ok'] = false;
-        $json['error'] = [];
-        
-        if(isset($this->request->post['order_id'])){
-            $order_id = (int)$this->request->post['order_id'];
-        }else{
-            $json['error']['error_order_id'] = $this->language->get('text_payRefund_error_order_id');
-        }
-        
-        if(isset($this->request->post['total'])){
-            $total = (float)$this->request->post['total'];
-        }else{
-            $json['error']['error_total'] = $this->language->get('text_payRefund_error_total');
-        }
-        
-        if($total <= 0){
-            $json['error']['error_total'] = $this->language->get('text_payRefund_error_total');
-        }
-        
-        if(empty($this->error)){
-            
-            $this->load->model('sale/order');
-            
-            $order_info = $this->model_sale_order->getOrder($order_id);
+    public function getInfoPayment() {
+		$data['result'] = array();
+		
+		$data['user_token'] = $this->session->data['user_token'];
+		
+		if(isset($this->request->get['external_id'])) {
+			$external_id = $this->request->get['external_id'];
+		
+			if($this->config->get($this->prefix.'test_status') === "1"){
+				$external_id .=  "_" . md5($this->request->server['HTTP_HOST']);
+			}
+			
+			$result = $this->convertToObjectArray($this->rpay->paymentInfo($external_id));
 
-            $rpay = new \RozetkaPay();
+			if(!empty($result[0])) {
+				$result_data = $result[0];
+				
+				//Log
+				$this->extLog($result_data);
+				
+				$customer_rows = array('first_name', 'last_name', 'patronym', 'phone', 'email');
+				
+				$customer = array();
+				
+				foreach($result_data['customer'] as $key => $customer_) {
+					if(in_array($key, $customer_rows) && !empty($customer_)) {
+						$customer[] = $customer_;
+					}
+				}
+				
+				$status = $this->language->get('text_list_status_success');
+				
+				if($result_data['refunded']) {
+					if($result_data['purchase_details'][0]['amount'] == $result_data['refund_details'][0]['amount']) {
+						$status = $this->language->get('text_list_status_full_refund');
+					} else {
+						$status = $this->language->get('text_list_status_part_refund');
+					}
+				}
+				
+				if($result_data['amount_canceled']) {
+					$status = $this->language->get('text_list_status_full_refund');
+				}
+				
+				$amount_final = 0;
+				
+				if($result_data['amount_refunded']) {
+					$amount_final = $result_data['amount'] - $result_data['amount_refunded'];
+				}	
+				
+				if($result_data['amount_confirmed']) {
+					$amount_final = $result_data['amount'] - $result_data['amount_confirmed'];
+				}
+				
+				$data['result'] = array(
+					'uuid'				=> $result_data['external_id'],
+					'text_status'		=> $status,
+					'status'			=> $result_data['purchase_details'][0]['status_code'],
+					'failureReason'		=> !empty($result_data['canceled']) ? $result_data['cancellation_details'] : '',
+					'amount'			=> $result_data['amount'],
+					'amount_refunded'	=> $result_data['amount_refunded'],
+					'amount_confirmed'	=> $result_data['amount_confirmed'],
+					'amount_canceled'	=> $result_data['amount_canceled'],
+					'amount_final'		=> $amount_final,
+					'currency'			=> $result_data['currency'],
+					'refunded'			=> $result_data['refunded'],
+					'confirmed'			=> $result_data['confirmed'],
+					'customer'			=> implode(" ", $customer),
+					'createdDate'		=> date('Y-m-d H:i:s', strtotime($result_data['purchase_details'][0]['created_at'])),
+					'modifiedDate'		=> date('Y-m-d H:i:s', strtotime($result_data['purchase_details'][0]['processed_at'])),
+				);
+			}
+		}
+		
+		$this->response->setOutput($this->load->view('extension/payment/rozetkapay_info', $data));
+	}
+	
+	public function confirmPayment() {
+		$json = array();
+		
+		$external_id = !empty($this->request->get['external_id']) ? $this->request->get['external_id'] : '';
+		
+		if($external_id) {
+			$this->load->model('sale/order');
+			
+			$order_info = $this->model_sale_order->getOrder($external_id);
+				
+			if($order_info) {
+				$dataCheckout = new \RPayCheckoutCreatRequest();
 
-            if($this->config->get($this->prefix.'test_status') === "1"){
-                $rpay->setBasicAuthTest();
-            }else{
-                $rpay->setBasicAuth($this->config->get($this->prefix.'login'), $this->config->get($this->prefix.'password'));
-            }
-            
-            $external_id = $order_id;
-            if($this->config->get($this->prefix.'test_status') === "1"){
-                $external_id .=  "_" . md5($_SERVER['HTTP_HOST']);
-            }
-
-            $rpay->setCallbackURL($this->SysUrl($this->path . '/callback', 'external_id=' . $external_id . '&refund'));
-
-            $dataPay = new \RPayCheckoutCreatRequest();
-
-            $dataPay->external_id = (string)$external_id;     
-            $dataPay->amount = $total;
-            $dataPay->currency = $order_info['currency_code'];
-            
-            list($status, $error) = $rpay->paymentRefund($dataPay);
-            
-            if($error !== false){
-                $json['error'][$error->code] = $error->message;
-            }
-            
-            $json['ok'] = $status;
-            
-        }
-        
-        if($json['ok']){
-            $json['alert'] = $this->language->get('text_success');
-        }else{
-            $json['alert'] = $this->language->get('text_failure');
-        }
-        
-        $this->response->addHeader('Content-Type: application/json');        
+				$dataCheckout->amount = $this->currency->format($this->request->get['amount'], $order_info['currency_code'], false, false);
+				$dataCheckout->external_id = $external_id;
+				$dataCheckout->currency = $order_info['currency_code'];
+				
+				if ($this->request->server['HTTPS']) {
+					$server = HTTPS_CATALOG;
+				} else {
+					$server = HTTP_CATALOG;
+				}
+				
+				$dataCheckout->callback_url = $server . 'index.php?route=extension/payment/rozetkapay/callback';
+				
+				$result = $this->convertToObjectArray($this->rpay->paymentConfirm($dataCheckout));
+				
+				if(!empty($result[0]['is_success']) && $result[0]['is_success']) {
+					$json['success'] = $this->language->get('text_success_confirm');
+				} elseif(!empty($result[1])) {						
+					$json['error'] = sprintf($this->language->get('text_error_refund_detail'), $result[1]['message']);
+				} else {						
+					$json['error'] = $this->language->get('text_error_refund');
+				}
+			}
+		}
+		
+		$this->response->addHeader('Content-Type: application/json');        
         $this->response->setOutput(json_encode($json));
-        
-    }
-    
-    public function payInfo() {
-                
-        $json = [];
-        
-        $json['ok'] = false;
-        $json['details'] = [];
-        $json['error'] = [];
-        
-        if(isset($this->request->post['order_id'])){
-            $order_id = (int)$this->request->post['order_id'];
-        }else{
-            $json['error']['error_order_id'] = $this->language->get('text_pay_error_order_id');
-        }
-        
-        if(empty($this->error)){        
-            
-            $this->load->model('sale/order');
-            
-            $order_info = $this->model_sale_order->getOrder($order_id);
+	}
+	
+	public function paymentCancel() {
+		$json = array();
+		
+		$external_id = !empty($this->request->get['external_id']) ? $this->request->get['external_id'] : '';
+		
+		if($external_id) {
+		
+			$this->load->model('sale/order');
+			
+			$order_info = $this->model_sale_order->getOrder($external_id);
+				
+			if($order_info) {
+				$dataCheckout = new \RPayCheckoutCreatRequest();
 
-            $rpay = new \RozetkaPay();
+				$dataCheckout->amount = $this->currency->format($this->request->get['amount'], $order_info['currency_code'], false, false);
+				$dataCheckout->external_id = $external_id;
+				$dataCheckout->currency = $order_info['currency_code'];
+				
+				if ($this->request->server['HTTPS']) {
+					$server = HTTPS_CATALOG;
+				} else {
+					$server = HTTP_CATALOG;
+				}
+				
+				$dataCheckout->callback_url = $server . 'index.php?route=extension/payment/rozetkapay/callback';
+				
+				$result = $this->convertToObjectArray($this->rpay->paymentCancel($dataCheckout));
 
-            if($this->config->get($this->prefix.'test_status') === "1"){
-                $rpay->setBasicAuthTest();
-            }else{
-                $rpay->setBasicAuth($this->config->get($this->prefix.'login'), $this->config->get($this->prefix.'password'));
-            }
-
-            $rpay->setCallbackURL($this->SysUrl($this->path . '/callback'));
-            
-            $external_id = $order_id;
-            if($this->config->get($this->prefix.'test_status') === "1"){
-                $external_id .=  "_" . md5($_SERVER['HTTP_HOST']);
-            }
-
-            list($results, $json['error']) = $rpay->paymentInfo((string)$external_id);
-            
-            $details = [];
-            if(empty($json['error'])){
-                if(isset($results->purchase_details) && !empty($results->purchase_details)){
-                    foreach ($results->purchase_details as $detail) {
-                        $details[] = [
-                            'amount' => $detail->amount,
-                            'currency' => $detail->currency,
-                            'status' => $detail->status,
-                            'created_at' => (new \DateTime($detail->created_at))->getTimestamp(),
-                            'type' => 'purchase'
-                        ];
-                    }
-                }
-
-                if(isset($results->confirmation_details) && !empty($results->confirmation_details)){
-                    foreach ($results->confirmation_details as $detail) {
-                        $details[] = [
-                            'amount' => $detail->amount,
-                            'currency' => $detail->currency,
-                            'status' => $detail->status,
-                            'created_at' => (new \DateTime($detail->created_at))->getTimestamp(),
-                            'type' => 'confirmation'
-                        ];
-                    }
-                }
-
-                if(isset($results->cancellation_details) && !empty($results->cancellation_details)){
-                    foreach ($results->cancellation_details as $detail) {
-                        $details[] = [
-                            'amount' => $detail->amount,
-                            'currency' => $detail->currency,
-                            'status' => $detail->status,
-                            'created_at' => (new \DateTime($detail->created_at))->getTimestamp(),
-                            'type' => 'cancellation'
-                        ];
-                    }
-                }
-
-                if(isset($results->refund_details) && !empty($results->refund_details)){
-                    foreach ($results->refund_details as $detail) {
-                        $details[] = [
-                            'amount' => $detail->amount,
-                            'currency' => $detail->currency,
-                            'status' => $detail->status,
-                            'created_at' => (new \DateTime($detail->created_at))->getTimestamp(),
-                            'type' => 'refund'
-                        ];
-                    }
-                }
-            }
-            
-            $sort_order = array();
-
-            foreach ($details as $key => $value) {
-                $sort_order[$key] = $value['created_at'];
-            }
-
-            array_multisort($sort_order, SORT_DESC, $details);
-            
-            $dat = new \DateTime();
-            foreach ($details as $key => $detail) {
-                $details[$key]['created_at'] = $dat->setTimestamp($detail['created_at'])->format($this->language->get('datetime_format'));
-            }
-            
-            $json['ok'] = true;
-            $json['details'] = $details;            
-            $json['alert'] = $this->language->get('text_success');
-            
-        
-        }else{
-            
-            $json['alert'] = $this->language->get('text_error');
-            
-        }
-        
-        $json['debug'] = $rpay->debug;
-        
-        $this->response->addHeader('Content-Type: application/json');        
+				if(!empty($result[0]['is_success']) && $result[0]['is_success']) {
+					$json['success'] = $this->language->get('text_success_refund');
+				} elseif(!empty($result[1])) {						
+					$json['error'] = sprintf($this->language->get('text_error_refund_detail'), $result[1]['message']);
+				} else {						
+					$json['error'] = $this->language->get('text_error_refund');
+				}
+			}
+		}
+		
+		$this->response->addHeader('Content-Type: application/json');        
         $this->response->setOutput(json_encode($json));
-        
-    }
+	}	
+	
+	public function paymentRefund() {
+		$json = array();
+		
+		$external_id = !empty($this->request->get['external_id']) ? $this->request->get['external_id'] : '';
+		
+		if($external_id) {
+		
+			$this->load->model('sale/order');
+			
+			$order_info = $this->model_sale_order->getOrder($external_id);
+				
+			if($order_info) {
+				$dataCheckout = new \RPayCheckoutCreatRequest();
+
+				$dataCheckout->amount = $this->currency->format($this->request->get['amount'], $order_info['currency_code'], false, false);
+				$dataCheckout->external_id = $external_id;
+				$dataCheckout->currency = $order_info['currency_code'];
+				
+				if ($this->request->server['HTTPS']) {
+					$server = HTTPS_CATALOG;
+				} else {
+					$server = HTTP_CATALOG;
+				}
+				
+				$dataCheckout->callback_url = $server . 'index.php?route=extension/payment/rozetkapay/callback';
+				
+				$result = $this->convertToObjectArray($this->rpay->paymentRefund($dataCheckout));
+
+				if(!empty($result[0]['is_success']) && $result[0]['is_success']) {
+					$json['success'] = $this->language->get('text_success_refund');
+				} elseif(!empty($result[1])) {						
+					$json['error'] = sprintf($this->language->get('text_error_refund_detail'), $result[1]['message']);
+				} else {						
+					$json['error'] = $this->language->get('text_error_refund');
+				}
+			}
+		}
+		
+		$this->response->addHeader('Content-Type: application/json');        
+        $this->response->setOutput(json_encode($json));
+	}
     
     public function SysloadLanguage($langs_key) {
         $results = [];
@@ -610,5 +593,24 @@ class ControllerExtensionPaymentRozetkaPay extends Controller {
         
         $text = json_encode($json);
     }
-
+	
+	private function convertToObjectArray($data) {
+		if (is_object($data)) {
+			$data = (array) $data;
+		}
+		
+		if (is_array($data)) {
+			foreach ($data as &$value) {
+				$value = $this->convertToObjectArray($value);
+			}
+		}
+		
+		return $data;
+	}
+	
+	public function extLog($var){
+        if($this->_extlog !== false){
+            $this->_extlog->write(json_encode($var, JSON_PRETTY_PRINT|JSON_UNESCAPED_UNICODE));
+        }
+    }
 }

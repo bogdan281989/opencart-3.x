@@ -58,7 +58,20 @@
                                 </div>
                             </div>
                                 
-                            
+                            <div class="form-group">
+                                <label class="col-sm-2 control-label">{{ entry_mode }}</label>
+                                <div class="col-sm-8">
+                                    <select name="payment_rozetkapay_mode" class="form-control">
+                                        {% if payment_rozetkapay_mode == 'hold' %}
+                                        <option value="hold" selected="selected">{{ text_hold }}</option>
+                                        <option value="pay">{{ text_direct_pay }}</option>
+                                        {% else %}
+                                        <option value="hold">{{ text_hold }}</option>
+                                        <option value="pay" selected="selected">{{ text_direct_pay }}</option>
+                                        {% endif %}
+                                    </select>
+                                </div>
+                            </div>
                             
                             <div class="form-group">
                                 <label class="col-sm-2 control-label">{{ entry_qrcode_status }}</label>
