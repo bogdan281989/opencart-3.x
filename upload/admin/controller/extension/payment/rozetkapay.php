@@ -17,7 +17,7 @@ class ControllerExtensionPaymentRozetkaPay extends Controller {
     private $tokenUrl = '';
 
     private $log_file = 'rozetkapay';    
-    private $extLog;
+    private $_extlog = false;
     
     public function __construct($registry) {
         parent::__construct($registry);
@@ -609,7 +609,7 @@ class ControllerExtensionPaymentRozetkaPay extends Controller {
 		return $data;
 	}
 	
-	public function extLog($var){
+	public function extLog($var){		
         if($this->_extlog !== false){
             $this->_extlog->write(json_encode($var, JSON_PRETTY_PRINT|JSON_UNESCAPED_UNICODE));
         }

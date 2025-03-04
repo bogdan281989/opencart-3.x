@@ -38,7 +38,7 @@ class ControllerExtensionPaymentRozetkaPay extends Controller {
     }
     
     public function extLog($var){
-        if($this->_extlog !== false){
+		if($this->_extlog !== false){
             $this->_extlog->write(json_encode($var, JSON_PRETTY_PRINT|JSON_UNESCAPED_UNICODE));
         }
     }
