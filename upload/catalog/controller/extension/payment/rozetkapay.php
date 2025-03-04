@@ -66,9 +66,9 @@ class ControllerExtensionPaymentRozetkaPay extends Controller {
             $order_id = $this->session->data['order_id'];
 
             $order_info = $this->model_checkout_order->getOrder($this->session->data['order_id']);
-            $this->extLog($order_info);
             
             $external_id = $order_id;
+			
             if($this->config->get($this->prefix.'test_status') === "1"){
                 $external_id .=  "_" . md5($this->request->server['HTTP_HOST']);
             }
@@ -92,7 +92,7 @@ class ControllerExtensionPaymentRozetkaPay extends Controller {
                 $customer->country = $order_info['payment_iso_code_2'];
                 $customer->city = $order_info['payment_city'];
                 $customer->postal_code = $order_info['payment_postcode'];
-                $customer->address = $order_info['payment_address_1'];
+				$customer->address = str_replace(array("(", ")", "[", "]"), '', $order_info['payment_address_1']);
                 $customer->phone = $order_info['telephone'];
                 
                 if($this->config->get($this->prefix.'language_detect') == "avto"){
@@ -217,11 +217,12 @@ class ControllerExtensionPaymentRozetkaPay extends Controller {
         $this->extLog($result);
         
         $status = $result->details->status;
-        
+        $operation = $result->operation;
+   
         $this->extLog('    order_id: ' . $order_id);
         $this->extLog('    status: ' . $status);
         
-        $orderStatus_id = $this->getRozetkaPayStatusToOrderStatus($status);
+        $orderStatus_id = $this->getRozetkaPayStatusToOrderStatus($status, $operation);
         
         $this->extLog('    orderStatus_id: ' . $orderStatus_id);
         
@@ -233,11 +234,9 @@ class ControllerExtensionPaymentRozetkaPay extends Controller {
 
         $order_info = $this->model_checkout_order->getOrder($order_id);
 
-        if(!$refund){
-            if ($orderStatus_id != "0" && $order_info['order_status_id'] != $orderStatus_id) {
-                $this->model_checkout_order->addOrderHistory($order_id, $orderStatus_id, 'RozetkaPay' . (($status_holding)?' holding':''), false);
-            }
-        }
+		if ($orderStatus_id != "0" && $order_info['order_status_id'] != $orderStatus_id) {
+			$this->model_checkout_order->addOrderHistory($order_id, $orderStatus_id, 'RozetkaPay' . (($status_holding)?' holding':''), false);
+		}
     }
 
     public function result() {
@@ -280,7 +279,10 @@ class ControllerExtensionPaymentRozetkaPay extends Controller {
 		$this->response->setOutput(json_encode($json));
 	}
 
-    public function getRozetkaPayStatusToOrderStatus($status) {
+    public function getRozetkaPayStatusToOrderStatus($status, $operation) {
+		if($operation == 'refund') {
+			return $this->config->get($this->prefix.'order_status_refund');
+		}
 
         switch ($status) {
             case "init":

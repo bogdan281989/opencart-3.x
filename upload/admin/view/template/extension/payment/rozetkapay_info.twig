@@ -13,7 +13,7 @@
 			{% endif %}
 			{% if result.amount_refunded > 0 %}
 				{% if result.amount_final > 0 %}
-				<tr><td><b>{{ text_info_amount_final }}</b></td><td style="color:green;"><b>{{ result.amount_final }}</b></td></tr>
+				<tr><td><b>{{ text_info_amount_final }}</b></td><td style="color:green;"><b>amount_refunded{{ result.amount_final }}</b></td></tr>
 				{% endif %}
 				<tr><td><b>{{ text_info_amount_refunded }}</b></td><td style="color:red;">{{ result.amount_refunded }}</td></tr>
 			{% endif %}
@@ -58,10 +58,12 @@
 		</div>
 		{% endif %}
 		{% if result.confirmed == true and result.amount_refunded == false %}
+		{% if result.amount_confirmed == result.amount %}
 		<div class="modal-footer">
 		<div class="alert alert-info text-left">{{ text_payment_success_refund }}</div>
 		<button type="button" class="btn btn-danger" id="refund-rp-pay" data-uuid="{{ result.uuid }}">{{ text_cancel_pay }}</button>
 		</div>
+		{% endif %}
 		{% endif %}
 	{% else %}
 	<div class="modal-body">

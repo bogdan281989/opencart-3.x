@@ -60,6 +60,7 @@ class ControllerExtensionPaymentRozetkaPay extends Controller {
             "order_status_pending" => "0",
             "order_status_success" => "",
             "order_status_failure" => "",
+            "order_status_refund" => "",
             
             "test_status" => false,
             "log_status" => false,
@@ -94,7 +95,7 @@ class ControllerExtensionPaymentRozetkaPay extends Controller {
             "language_detect", "currency_detect",
             
             
-            "order_status_init","order_status_pending", "order_status_success","order_status_failure",
+            "order_status_init","order_status_pending", "order_status_success","order_status_failure","order_status_refund",
             "test_status", "log_status",
             
             'send_info_customer_status', 'send_info_products_status', 
@@ -226,7 +227,7 @@ class ControllerExtensionPaymentRozetkaPay extends Controller {
 			$data['error'] = '';
 		}
         
-        $arr = array('warning', 'login', 'password', 'order_status_success', 'order_status_failure', 'title');
+        $arr = array('warning', 'login', 'password', 'order_status_success', 'order_status_failure', 'order_status_refund', 'title');
         
         foreach ($arr as $v)
             $data['error_' . $v] = (isset($this->error[$v])) ? $this->error[$v] : false;
